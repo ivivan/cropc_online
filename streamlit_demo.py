@@ -1,5 +1,4 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import altair as alt
 import operator
 import numpy as np
