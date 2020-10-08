@@ -85,9 +85,9 @@ class AttentionModel(torch.nn.Module):
         # mannual masking, force model focus on previous time index
         mask_one = torch.ones(
             size=(self.batch_size, attn_ene.shape[1]), dtype=torch.long).to(device)
-        mask_zero = torch.zeros(size=(self.batch_size, 6),
+        mask_zero = torch.zeros(size=(self.batch_size, 30),
                                 dtype=torch.long).to(device)
-        mask_one[:, -6:] = mask_zero
+        mask_one[:, -30:] = mask_zero
         attn_ene = attn_ene.masked_fill(mask_one == 0, -np.inf)
 
         attns = F.softmax(attn_ene, dim=1).unsqueeze(2)
@@ -306,7 +306,7 @@ if __name__ == '__main__':
         st.subheader("Results")
         if results is not None:
             st.write(results.style.highlight_max(axis=1))
-            # play_bar_plots(attentions)
+            play_bar_plots(attentions)
             if ground_truth_file is not None:
                 data = pd.read_csv(ground_truth_file)
                 check_prediction(pred_classes, pred_labels, ndvi_nrow, data)
