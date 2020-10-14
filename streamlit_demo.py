@@ -25,6 +25,9 @@ set_global_seed(SEED)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+#### self attention with lstm
+
+
 class AttentionModel(torch.nn.Module):
     def __init__(self, batch_size, input_dim, hidden_dim, output_dim, recurrent_layers, dropout_p):
         super(AttentionModel, self).__init__()
@@ -46,6 +49,8 @@ class AttentionModel(torch.nn.Module):
             nn.ReLU(True),
             nn.Linear(hidden_dim*2, 1)
         )
+
+        self.scale = 1.0/np.sqrt(hidden_dim)
 
         # initialize LSTM forget gate bias to be 1 as recommanded by http://proceedings.mlr.press/v37/jozefowicz15.pdf
         for names in self.lstm._all_weights:
@@ -81,14 +86,17 @@ class AttentionModel(torch.nn.Module):
 
         attn_ene = attn_ene.view(
             self.batch_size, -1)
+        
+        # scale
+        attn_ene.mul_(self.scale)
 
-        # mannual masking, force model focus on previous time index
-        mask_one = torch.ones(
-            size=(self.batch_size, attn_ene.shape[1]), dtype=torch.long).to(device)
-        mask_zero = torch.zeros(size=(self.batch_size, 30),
-                                dtype=torch.long).to(device)
-        mask_one[:, -30:] = mask_zero
-        attn_ene = attn_ene.masked_fill(mask_one == 0, -np.inf)
+        # # mannual masking, force model focus on previous time index
+        # mask_one = torch.ones(
+        #     size=(self.batch_size, attn_ene.shape[1]), dtype=torch.long).to(device)
+        # mask_zero = torch.zeros(size=(self.batch_size, 30),
+        #                         dtype=torch.long).to(device)
+        # mask_one[:, -30:] = mask_zero
+        # attn_ene = attn_ene.masked_fill(mask_one == 0, -np.inf)
 
         attns = F.softmax(attn_ene, dim=1).unsqueeze(2)
 
@@ -101,6 +109,7 @@ class AttentionModel(torch.nn.Module):
 
         return logits, attns
         # return {"logits": logits, "attention": attention_scores}
+
 
 
 class CustomRunner(Runner):
@@ -192,11 +201,14 @@ def prepare_model():
 
     INPUT_DIM = 1
     OUTPUT_DIM = 5
-    HID_DIM = 40
+    HID_DIM = 256
     DROPOUT = 0.3
     RECURRENT_Layers = 2
+    # LR = 0.001  # learning rate
+    EPOCHS = 400
     BATCH_SIZE = 1
     num_classes = 5
+
 
     # model, criterion, optimizer, scheduler
     model = AttentionModel(BATCH_SIZE, INPUT_DIM, HID_DIM,

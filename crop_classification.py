@@ -76,24 +76,9 @@ class CustomRunner(Runner):
 #### self attention with lstm
 
 
-
-#### self attention with lstm
-
 class AttentionModel(torch.nn.Module):
     def __init__(self, batch_size, input_dim, hidden_dim, output_dim, recurrent_layers, dropout_p):
         super(AttentionModel, self).__init__()
-
-        """
-		Arguments
-		---------
-		batch_size : 
-		input_dim :
-		hidden_dim : 
-		output_dim : 
-		recurrent_layers : 
-		--------
-		
-		"""
 
         self.batch_size = batch_size
         self.output_dim = output_dim
@@ -113,6 +98,8 @@ class AttentionModel(torch.nn.Module):
             nn.Linear(hidden_dim*2, 1)
         )
 
+        self.scale = 1.0/np.sqrt(hidden_dim)
+
         # initialize LSTM forget gate bias to be 1 as recommanded by http://proceedings.mlr.press/v37/jozefowicz15.pdf
         for names in self.lstm._all_weights:
             for name in filter(lambda n: "bias" in n, names):
@@ -125,22 +112,8 @@ class AttentionModel(torch.nn.Module):
         self.label = nn.Linear(hidden_dim*4, output_dim)
 
     def forward(self, input_sentences, batch_size=None):
-        """ 
-        Parameters
-        ----------
-        input_sentence: input_sentence of shape = (batch_size, num_sequences)
-        batch_size : default = None. Used only for prediction on a single sentence after training (batch_size = 1)
 
-        Returns
-        -------
-        Output of the linear layer containing logits for pos & neg class which receives its input as the new_hidden_state which is basically the output of the Attention network.
-        final_output.shape = (batch_size, output_dim)
-
-        """
-
-        # input = self.input_embeded(input_sentences)
         input = self.dropout(torch.tanh(self.input_embeded(input_sentences)))
-
         input = input.permute(1, 0, 2)
         if batch_size is None:
             h_0 = Variable(torch.zeros(2*self.recurrent_layers,
@@ -153,21 +126,32 @@ class AttentionModel(torch.nn.Module):
             c_0 = Variable(torch.zeros(2*self.recurrent_layers,
                                        batch_size, self.hidden_dim).to(device))
 
-        # final_hidden_state.size() = (1, batch_size, hidden_size)
         output, (final_hidden_state, final_cell_state) = self.lstm(
             input, (h_0, c_0))
-        # output.size() = (batch_size, num_seq, hidden_size)
         output = output.permute(1, 0, 2)
 
         attn_ene = self.self_attention(output)
 
-        attns = F.softmax(attn_ene.view(
-            self.batch_size, -1), dim=1).unsqueeze(2)
+        attn_ene = attn_ene.view(
+            self.batch_size, -1)
+        
+        # scale
+        attn_ene.mul_(self.scale)
+
+        # # mannual masking, force model focus on previous time index
+        # mask_one = torch.ones(
+        #     size=(self.batch_size, attn_ene.shape[1]), dtype=torch.long).to(device)
+        # mask_zero = torch.zeros(size=(self.batch_size, 30),
+        #                         dtype=torch.long).to(device)
+        # mask_one[:, -30:] = mask_zero
+        # attn_ene = attn_ene.masked_fill(mask_one == 0, -np.inf)
+
+        attns = F.softmax(attn_ene, dim=1).unsqueeze(2)
 
         final_inputs = (output * attns).sum(dim=1)
         final_inputs2 = output.sum(dim=1)
 
-        combined_inputs = torch.cat([final_inputs,final_inputs2],dim=1)
+        combined_inputs = torch.cat([final_inputs, final_inputs2], dim=1)
 
         logits = self.label(combined_inputs)
 
