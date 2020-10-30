@@ -177,15 +177,15 @@ def read_scaler(path):
     return scaler_data_
 
 
-def prepare_input(df, scalerinfo):
-    # normalizeation
-    scaler = StandardScaler()
-    scaler.fit(df)
-    scaler.scale_, scaler.mean_, scaler.var_ = scalerinfo[0], scalerinfo[1], scalerinfo[2]
-    X_test = scaler.transform(df)
+def prepare_input(df):
+    # # normalizeation
+    # scaler = StandardScaler()
+    # scaler.fit(df)
+    # scaler.scale_, scaler.mean_, scaler.var_ = scalerinfo[0], scalerinfo[1], scalerinfo[2]
+    # X_test = scaler.transform(df)
 
     # prepare PyTorch Datasets
-    X_test_tensor = numpy_to_tensor(X_test, torch.FloatTensor)
+    X_test_tensor = numpy_to_tensor(df.to_numpy(), torch.FloatTensor)
     X_test_tensor = torch.unsqueeze(X_test_tensor, 2)
     valid_ds = TensorDataset(X_test_tensor)
     # #### model inference
@@ -220,7 +220,7 @@ def prepare_model():
 def execute_model(model, input_data):
     # # model training
     runner = CustomRunner()
-    class_names = ['Barley', 'Canola', 'Chick Pea', 'Lentils', 'Wheat']
+    class_names = ['Barley', 'Canola', 'Chickpea', 'Lentils', 'Wheat']
     predictions = np.vstack(list(map(
         lambda x: x[0].cpu().numpy(),
         runner.predict_loader(model=model,
@@ -253,14 +253,14 @@ def execute_model(model, input_data):
 
     results = pd.concat([probabilities_df,
                          pred_classes_df], axis=1)
-    results.columns = ['Prob_Barley', 'Prob_Canola', 'Prob_Chick_Pea', 'Prob_Lentils',
+    results.columns = ['Prob_Barley', 'Prob_Canola', 'Prob_Chickpea', 'Prob_Lentils',
                        'Prob_Wheat', 'Pred_class']
 
     return probabilities, pred_classes, pred_labels, results, attentions
 
 
 def check_prediction(pred_classes, pred_label, ndvi_nrow, groud_truth_df):
-    class_names = ['Barley', 'Canola', 'Chick Pea', 'Lentils', 'Wheat']
+    class_names = ['Barley', 'Canola', 'Chickpea', 'Lentils', 'Wheat']
     ground_truth = groud_truth_df.iloc[ndvi_nrow].to_numpy()
     st.markdown("Ground Truth:{}".format(class_names[ground_truth[0]]))
     if np.equal(ground_truth, pred_label):
@@ -309,8 +309,8 @@ if __name__ == '__main__':
         if run_model:
             with st.spinner('Model Running, Input Curve Row No.{}'.format(ndvi_nrow)):
                 picked_input = data.iloc[[ndvi_nrow]]
-                scaler_info = read_scaler('./standard_scaler.npy')
-                model_input = prepare_input(picked_input, scaler_info)
+                # scaler_info = read_scaler('./standard_scaler.npy')
+                model_input = prepare_input(picked_input)
                 model_instance = prepare_model()
                 probabilities, pred_classes, pred_labels, results, attentions = execute_model(
                     model_instance, model_input)

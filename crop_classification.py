@@ -192,15 +192,15 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=SEED, stratify=y)
 
-    # normalizeation
-    scaler = StandardScaler()
-    scaler.fit(X_train)
-    X_train = scaler.transform(X_train)
-    # X_test = scaler.transform(X_test)
+    # # normalizeation
+    # scaler = StandardScaler()
+    # scaler.fit(X_train)
+    # X_train = scaler.transform(X_train)
+
     
     
-    scaler_data_ = np.array([scaler.scale_, scaler.mean_, scaler.var_])
-    np.save("standard_scaler.npy", scaler_data_)
+    # scaler_data_ = np.array([scaler.scale_, scaler.mean_, scaler.var_])
+    # np.save("standard_scaler.npy", scaler_data_)
 
     ###
     # dataset = pd.DataFrame(X_test)
